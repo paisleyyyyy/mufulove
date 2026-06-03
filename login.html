@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>你与我之间</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const SENTENCE = "You gave the wind a place to stay.";
+    const MUSIC_SRC = "https://ivrsijqtzwsuzurwburw.supabase.co/storage/v1/object/public/assets/Matryoshka%20-%20Sacred%20Play%20Secret%20Place.mp3";
+
+    function LoginPage() {
+      const [showTitle, setShowTitle] = useState(false);
+      const [showSub, setShowSub] = useState(false);
+      const [startTyping, setStartTyping] = useState(false);
+      const [typed, setTyped] = useState("");
+      const [showCursor, setShowCursor] = useState(true);
+      const [typingDone, setTypingDone] = useState(false);
+      const [password, setPassword] = useState("");
+      const [showInput, setShowInput] = useState(false);
+      const [shake, setShake] = useState(false);
+      const [playing, setPlaying] = useState(false);
+      const [showMusicBtn, setShowMusicBtn] = useState(false);
+      const inputRef = useRef(null);
+      const audioRef = useRef(null);
+
+      useEffect(() => {
+        setTimeout(() => setShowTitle(true), 300);
+        setTimeout(() => setShowSub(true), 1000);
+        setTimeout(() => setStartTyping(true), 1800);
+        setTimeout(() => setShowMusicBtn(true), 2400);
+      }, []);
+
+      useEffect(() => {
+        if (!startTyping) return;
+        let i = 0;
+        const interval = setInterval(() => {
+          if (i < SENTENCE.length) {
+            setTyped(SENTENCE.slice(0, i + 1));
+            i++;
+          } else {
+            clearInterval(interval);
+            setTimeout(() => {
+              setTypingDone(true);
+              setTimeout(() => setShowInput(true), 600);
+            }, 400);
+          }
+        }, 95);
+        return () => clearInterval(interval);
+      }, [startTyping]);
+
+      useEffect(() => {
+        const blink = setInterval(() => setShowCursor((c) => !c), 530);
+        return () => clearInterval(blink);
+      }, []);
+
+      useEffect(() => {
+        if (showInput && inputRef.current) inputRef.current.focus();
+      }, [showInput]);
+
+      useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        audio.volume = 0.35;
+        audio.loop = true;
+        const onCanPlay = () => {};
+        audio.addEventListener("canplaythrough", onCanPlay);
+        return () => audio.removeEventListener("canplaythrough", onCanPlay);
+      }, []);
+
+      const toggleMusic = useCallback(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        if (playing) {
+          audio.pause();
+          setPlaying(false);
+        } else {
+          audio.play().then(() => setPlaying(true)).catch(() => {});
+        }
+      }, [playing]);
+
+      useEffect(() => {
+        const tryPlay = () => {
+          const audio = audioRef.current;
+          if (audio && !playing) {
+            audio.play().then(() => setPlaying(true)).catch(() => {});
+          }
+          document.removeEventListener("click", tryPlay);
+        };
+        document.addEventListener("click", tryPlay, { once: true });
+        return () => document.removeEventListener("click", tryPlay);
+      }, []);
+
+      const handleSubmit = () => {
+        if (password === "") return;
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+        setPassword("");
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === "Enter") handleSubmit();
+      };
+
+      return (
+        <div style={styles.wrapper}>
+          <audio ref={audioRef} src={MUSIC_SRC} preload="auto" />
+
+          <div style={styles.noise} />
+
+          <svg style={styles.grainSvg}>
+            <filter id="grain">
+              <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+              <feColorMatrix type="saturate" values="0" />
+            </filter>
+            <rect width="100%" height="100%" filter="url(#grain)" opacity="0.03" />
+          </svg>
+
+          <button
+            onClick={toggleMusic}
+            style={{
+              ...styles.musicBtn,
+              opacity: showMusicBtn ? 0.4 : 0,
+              transition: "opacity 1s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.7"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.4"; }}
+            title={playing ? "pause" : "play"}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3d3530" strokeWidth="1.5">
+              {playing ? (
+                <>
+                  <line x1="8" y1="4" x2="8" y2="20">
+                    <animate attributeName="y2" values="20;12;20" dur="1.2s" repeatCount="indefinite" />
+                  </line>
+                  <line x1="12" y1="4" x2="12" y2="20">
+                    <animate attributeName="y2" values="14;20;14" dur="1s" repeatCount="indefinite" />
+                  </line>
+                  <line x1="16" y1="4" x2="16" y2="20">
+                    <animate attributeName="y2" values="20;8;20" dur="1.4s" repeatCount="indefinite" />
+                  </line>
+                </>
+              ) : (
+                <circle cx="12" cy="12" r="8" strokeDasharray="2 3" />
+              )}
+            </svg>
+          </button>
+
+          <div style={styles.content}>
+            <h1
+              style={{
+                ...styles.title,
+                opacity: showTitle ? 1 : 0,
+                transform: showTitle ? "translateY(0)" : "translateY(18px)",
+                transition: "all 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+              }}
+            >
+              你與我之間
+            </h1>
+
+            <div
+              style={{
+                ...styles.subtitle,
+                opacity: showSub ? 0.4 : 0,
+                transform: showSub ? "translateY(0)" : "translateY(10px)",
+                transition: "all 1s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+              }}
+            >
+              mu & fu
+            </div>
+
+            <div style={styles.sentenceWrap}>
+              <span style={styles.sentence}>
+                {typed}
+                <span style={{ ...styles.cursor, opacity: showCursor ? 1 : 0 }}>|</span>
+              </span>
+            </div>
+
+            <div
+              style={{
+                ...styles.inputArea,
+                opacity: showInput ? 1 : 0,
+                transform: showInput ? "translateY(0)" : "translateY(12px)",
+                transition: "all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+              }}
+            >
+              <div style={{ ...styles.inputRow, animation: shake ? "shake 0.5s ease" : "none" }}>
+                <input
+                  ref={inputRef}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder=""
+                  style={styles.input}
+                  autoComplete="off"
+                />
+                <div style={styles.inputLine} />
+              </div>
+              <button
+                onClick={handleSubmit}
+                style={styles.enterBtn}
+                onMouseEnter={(e) => { e.target.style.opacity = "0.6"; }}
+                onMouseLeave={(e) => { e.target.style.opacity = "0.4"; }}
+              >
+                enter
+              </button>
+            </div>
+
+            <div style={{ ...styles.bottomMark, opacity: typingDone ? 0.25 : 0, transition: "opacity 1.5s ease" }}>
+              C
+            </div>
+          </div>
+
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@200;300;400;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Cutive+Mono&display=swap');
+
+            @keyframes shake {
+              0%, 100% { transform: translateX(0); }
+              20% { transform: translateX(-6px); }
+              40% { transform: translateX(6px); }
+              60% { transform: translateX(-4px); }
+              80% { transform: translateX(4px); }
+            }
+
+            input:focus { outline: none; }
+            ::selection { background: #F9B2C0; color: #2a2420; }
+          `}</style>
+        </div>
+      );
+    }
+
+    const styles = {
+      wrapper: {
+        width: "100vw",
+        height: "100vh",
+        background: "linear-gradient(160deg, #FBFECF 0%, #FDF5DC 35%, #FCDFD0 65%, #F9B2C0 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        overflow: "hidden",
+      },
+      noise: {
+        position: "absolute",
+        inset: 0,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,
+        opacity: 0.5,
+        pointerEvents: "none",
+      },
+      grainSvg: {
+        position: "absolute",
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      },
+      musicBtn: {
+        position: "fixed",
+        top: "28px",
+        right: "28px",
+        zIndex: 10,
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        padding: "8px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      },
+      content: {
+        position: "relative",
+        zIndex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "18px",
+        padding: "20px",
+      },
+      title: {
+        fontFamily: "'Noto Serif TC', 'Georgia', serif",
+        fontSize: "clamp(36px, 9vw, 68px)",
+        fontWeight: 200,
+        color: "#3d3530",
+        letterSpacing: "0.18em",
+        lineHeight: 1.3,
+        textAlign: "center",
+        marginBottom: "0",
+      },
+      subtitle: {
+        fontFamily: "'Cutive Mono', monospace",
+        fontSize: "clamp(11px, 1.8vw, 14px)",
+        color: "#3d3530",
+        letterSpacing: "0.45em",
+        textTransform: "lowercase",
+        marginBottom: "24px",
+      },
+      sentenceWrap: {
+        minHeight: "40px",
+        display: "flex",
+        alignItems: "center",
+      },
+      sentence: {
+        fontFamily: "'Cutive Mono', 'Courier New', monospace",
+        fontSize: "clamp(14px, 2.5vw, 20px)",
+        color: "#3d3530",
+        letterSpacing: "0.08em",
+        lineHeight: 1.6,
+        textAlign: "center",
+      },
+      cursor: {
+        fontFamily: "'Cutive Mono', monospace",
+        fontWeight: 300,
+        color: "#3d3530",
+        marginLeft: "1px",
+        transition: "opacity 0.1s",
+      },
+      inputArea: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "20px",
+        marginTop: "8px",
+      },
+      inputRow: {
+        position: "relative",
+        width: "180px",
+      },
+      input: {
+        width: "180px",
+        background: "transparent",
+        border: "none",
+        fontFamily: "'Cormorant Garamond', 'Georgia', serif",
+        fontSize: "18px",
+        color: "#3d3530",
+        textAlign: "center",
+        letterSpacing: "0.3em",
+        padding: "8px 0",
+        caretColor: "#3d3530",
+      },
+      inputLine: {
+        width: "100%",
+        height: "1px",
+        background: "linear-gradient(90deg, transparent, #3d353060, transparent)",
+      },
+      enterBtn: {
+        background: "none",
+        border: "none",
+        fontFamily: "'Cutive Mono', monospace",
+        fontSize: "12px",
+        color: "#3d3530",
+        letterSpacing: "0.35em",
+        textTransform: "lowercase",
+        cursor: "pointer",
+        opacity: 0.4,
+        transition: "opacity 0.3s ease",
+        padding: "4px 12px",
+      },
+      bottomMark: {
+        position: "fixed",
+        bottom: "32px",
+        fontFamily: "'Cormorant Garamond', serif",
+        fontSize: "14px",
+        fontStyle: "italic",
+        color: "#3d3530",
+        letterSpacing: "0.2em",
+      },
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<LoginPage />);
+  </script>
+</body>
+</html>
